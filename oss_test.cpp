@@ -2,7 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <fcntl.h>
-#include <linux/soundcard.h>
+#include <sys/soundcard.h>
 #include <iostream>
 #include <unistd.h>
 
@@ -17,8 +17,8 @@ using namespace std;
 #define NUM_FREQS 3 //total number of frequencies
 #define BUFFSIZE (int) (NUM_FREQS*LENGTH*RATE*SIZE*CHANNELS) //bytes sent to audio device
 #define ARRAYSIZE (int) (NUM_FREQS*LENGTH*RATE*CHANNELS) //total number of samples
-#define SAMPLE_MAX (pow(2,SIZE*8 - 1) - 1) 
- 
+#define SAMPLE_MAX (pow(2,SIZE*8 - 1) - 1)
+
 void writeToSoundDevice(TYPE buf[], int deviceID) {
       int status;
       status = write(deviceID, buf, 16000);
@@ -30,7 +30,7 @@ void writeToSoundDevice(TYPE buf[], int deviceID) {
       if (status == -1)
             perror("SNDCTL_DSP_SYNC failed\n");
 }
- 
+
 int main() {
       int device_ID, arg, status, t, a, i;
 	int attack = 1;
@@ -56,12 +56,12 @@ int main() {
       if (status == -1)
             perror("Unable to set sampling rate\n");
       a = SAMPLE_MAX;
-	
+
 	k = 2*PI/RATE;
 
-      	for (i = 0; i < NUM_FREQS; i++) 
+      	for (i = 0; i < NUM_FREQS; i++)
 	{
-            	switch (i) 
+            	switch (i)
 		{
                   case 0:
                         f = k * 262;
@@ -77,7 +77,7 @@ int main() {
 		//cout << f << endl;
 		a = 0;
 		attack = 1; decay = 0;
-            	for (t = 0; t < 16000; t++) 
+            	for (t = 0; t < 16000; t++)
 		{
                   	if(attack)
 			{
@@ -95,7 +95,7 @@ int main() {
             	}
       		writeToSoundDevice(buf, device_ID);
 	}
-	
-	
+
+
 	return(0);
 }
