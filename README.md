@@ -1,0 +1,2 @@
+# mook
+Markov chain project
