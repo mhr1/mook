@@ -20,24 +20,25 @@ unsigned long my_rand(void)
 
 int main(void)
 {
-  int range;
-  int i, x;
+  int range, sum;
+  int i, j, x;
 
-  int A = 45;
-  int B = 20;
-  int C = 30;
+  int A[7] = {75, 30, 20, 50, 50, 30, 20};
 
-  range = A + B + C;
+
+  range = 0;
+	for(i = 0; i < 7; i++)
+		range += A[i];
 
   for(i = 0; i < 100; i++)
   {
     x = (int)((double)my_rand() * (double)range/MY_RAND_MAX);
 
-    if(x < A) cout << "A" << endl;
-    else if(x < A + B) cout << "B" << endl;
-    else if(x < A + B + C) cout << "C" << endl;
+		sum = 0;
+		j = 0;
+    while(x >= sum)sum += A[j++];
 
-    //cout << x << endl;
+    cout << "Note " << j << " given x = " << x << endl;
   }
 
 }
