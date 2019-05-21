@@ -1,0 +1,1 @@
+g++ -Wall -D__UNIX_JACK__ rtmidi_test.cpp RtMidi.cpp -ljack -o rt

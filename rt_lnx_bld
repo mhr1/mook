@@ -1,0 +1,1 @@
+g++ -Wall -D__LINUX_ALSA__ rtmidi_test.cpp RtMidi.cpp -lasound -lpthread -o rt
