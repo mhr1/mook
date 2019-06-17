@@ -9,10 +9,45 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <signal.h> // for signal (interrupt??)
+//#include <stdio.h>
 //#include <gtk/gtk.h>
 #include "RtMidi.h"
+bool done;
 
 using namespace std;
+
+#include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+int kbhit(void)
+{
+  struct termios oldt, newt;
+  int ch;
+  int oldf;
+
+  tcgetattr(STDIN_FILENO, &oldt);
+  newt = oldt;
+  newt.c_lflag &= ~(ICANON | ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+
+  ch = getchar();
+
+  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+  fcntl(STDIN_FILENO, F_SETFL, oldf);
+
+  if(ch != EOF)
+  {
+    ungetc(ch, stdin);
+    return 1;
+  }
+
+  return 0;
+}
 
 // Platform-dependent sleep routines.
 #if defined(WIN32)
@@ -25,7 +60,6 @@ using namespace std;
 
 // This function should be embedded in a try/catch block in case of
 // an exception.  It offers the user a choice of MIDI ports to open.
-// It returns false if there are no ports available.
 bool chooseMidiPort( RtMidiOut *rtmidi )
 {
   if(rtmidi->getPortCount() > 0)
@@ -36,9 +70,9 @@ bool chooseMidiPort( RtMidiOut *rtmidi )
   return true;
 }
 
-#define STIME 500
+#define STIME 100
 
-static unsigned long my_seed = 1111; //11056; //default random seed
+static unsigned long my_seed = 1223; //11056; //default random seed
 #define MY_RAND_MAX 2147483646 // 2^32 - 2, 1 less than mod value in rand no gen
 
 unsigned long my_rand(void)
@@ -49,6 +83,141 @@ unsigned long my_rand(void)
 	my_seed = random_number;
 	return(random_number);
 }
+
+class note
+{
+public:
+  note(){};
+  ~note(){};
+
+  int get_note(int last_note)
+  {
+    int range = 0, sum = 0;
+    int i, j, x;
+
+  	for(i = 0; i < 7; i++)
+  		range += A[last_note][i];
+
+    x = (int)((double)my_rand() * (double)range/MY_RAND_MAX);
+
+    for(j = 0; j < 7; j++)
+    {
+      sum += A[last_note][j];
+      if(x <= sum) break;
+    }
+    return(j);
+  };
+
+  int get_note(int last_note, int penum_note)
+  {
+    int range = 0, sum = 0;
+    int i, j, x;
+
+  	for(i = 0; i < 7; i++)
+  		range += B[last_note][penum_note][i];
+
+      x = (int)((double)my_rand() * (double)range/MY_RAND_MAX);
+
+      for(j = 0; j < 7; j++)
+      {
+        sum += B[last_note][penum_note][j];
+        if(x <= sum)break;
+      }
+      //cout << "Note " << j << " given x = " << x <<  endl;
+
+      return(j);
+  };
+
+  int rand_A(void)
+  {
+    int i, j;
+    for(i = 0; i < 7; i++)
+      for(j = 0; j < 7; j++)
+        A[i][j] = (int)((double)my_rand() * (double)99/MY_RAND_MAX);
+    return(1);
+  };
+
+  int rand_B(void)
+  {
+    int i, j, k;
+    for(i = 0; i < 7; i++)
+      for(j = 0; j < 7; j++)
+        for(k = 0; k < 7; k++)
+          B[i][j][k] = (int)((double)my_rand() * (double)99/MY_RAND_MAX);
+    return(1);
+  };
+
+  int reset_B(void)
+  {
+    int i, j, k;
+    for(i = 0; i < 7; i++)
+      for(j = 0; j < 7; j++)
+        for(k = 0; k < 7; k++)
+          B[i][j][k] = 0;
+    return(1);
+  };
+
+  int set_ones_B(void)
+  {
+    int i, j, k;
+    for(i = 0; i < 7; i++)
+      for(j = 0; j < 7; j++)
+        for(k = 0; k < 7; k++)
+          B[i][j][k] = 1;
+    return(1);
+  };
+
+  int set_B(int i, int j, int k, int value)
+  {
+    B[i][j][k] = value;
+    return(1);
+  };
+
+  int inc_B(int i, int j, int k)
+  {
+    B[i][j][k]++;
+    return(1);
+  };
+
+  int show_A(void)
+  {
+    int i, j;
+    for(i = 0; i < 7; i++)
+    {
+      for(j = 0; j < 7; j++)
+        cout << A[i][j] << " ";
+      cout << endl;
+    }
+    return(1);
+  };
+
+  int show_B(void)
+  {
+    int i, j, k;
+    for(i = 0; i < 7; i++)
+    {
+      for(j = 0; j < 7; j++)
+      {
+        for(k = 0; k < 7; k++)
+          cout << B[i][j][k] << " ";
+        cout << endl;
+      }
+      cout << endl;
+    }
+    return(1);
+  };
+
+private:
+  int A[7][7] = {{  0,  0,  0,  0,  0,  0, 99 }, // Last_note = 0
+                 {  0,  0,  0,  0, 25, 75, 50 },
+                 {  0,  0,  0,  0, 25, 75, 50 },
+                 {  0,  0,  0,  0, 25, 75, 50 },
+                 {  0,  0,  0,  0, 25, 75, 50 },
+                 {  0,  0,  0,  0, 25, 75, 50 },
+                 { 99,  0,  0,  0,  0,  0,  0 }};
+
+  int B[7][7][7];
+};
 
 int get_note1(void)
 {
@@ -80,7 +249,7 @@ int get_note1(void)
 }
 
 /*
-  Goodall Method
+  Goodall Method (get_note2())
 
   get_note2() uses the probability of moving up or down the musical scale as
   opposed to get_note1() that uses the probability of a given note in the scale
@@ -122,24 +291,62 @@ int get_note2(int last_note)
 }
 
 
+int get_note3(int last_note)
+{
+  int range, sum;
+  int i, j, x;
+// A[last_note][x]
+  int A[7][7] = {{  0,  0,  0,  0,  0,  0, 99 }, // Last_note = 0
+                 {  0,  0,  0,  0, 25, 75, 50 },
+                 {  0,  0,  0,  0, 25, 75, 50 },
+                 {  0,  0,  0,  0, 25, 75, 50 },
+                 {  0,  0,  0,  0, 25, 75, 50 },
+                 {  0,  0,  0,  0, 25, 75, 50 },
+                 { 99,  0,  0,  0,  0,  0,  0 }};
+
+  range = 0;
+	for(i = 0; i < 7; i++)
+		range += A[last_note][i];
+
+    x = (int)((double)my_rand() * (double)range/MY_RAND_MAX);
+
+		sum = 0;
+		j = 0;
+  //while(x >= sum)sum += A[j++];
+    for(j = 0; j < 7; j++)
+    {
+      sum += A[last_note][j];
+      if(x <= sum)
+        break;
+    }
+    cout << "Note " << j << " given x = " << x <<  endl;
+
+    return(j);
+}
+
+
 int get_space(void)
 {   int j = 0;
     int x = (int)((double)my_rand() * (double)100/MY_RAND_MAX);
 
-    if(x > 40)j = 1;
+    if(x > 100)j = 1;
     return(j);
 }
 
+static void finish(int ignore){ done = true; }
 
 int main( void )
 {
   RtMidiOut *midiout = 0;
   vector<unsigned char> message;
-  int last_note = 60; // key of C
+
+  note mynote;
+
+  int this_note = 0, last_note = 0, pen_note = 0;
   int note1, note2, note3, note4, i, j;
   int notes[10][32];
-  int order[20] = {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9};
-  int modes[7][22] = {{48, 50, 52, 53, 55, 57, 59,
+  int order[20] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  int modes[8][22] = {{48, 50, 52, 53, 55, 57, 59,
                         60, 62, 64, 65, 67, 69, 71,
                         72, 74, 76, 77, 79, 81, 83,
                         84},
@@ -166,10 +373,75 @@ int main( void )
                         {48, 49, 51, 53, 54, 56, 58,
                         60, 61, 63, 65, 66, 68, 70,
                         72, 73, 75, 77, 78, 80, 82,
+                        84},
+                        {48, 50, 51, 53, 55, 56, 59,
+                        60, 62, 63, 65, 67, 68, 71,
+                        72, 74, 75, 77, 79, 80, 83,
                         84}};
 
-  int mode = 5; // 0 = Ionian, 1 = Dorian, 2 = Phrygian. 3 = Lydian
-  // 4 = Mixolydian, 5 = Aeolian, 6 = Locrian
+  int mode = 0; // 0 = Ionian, 1 = Dorian, 2 = Phrygian. 3 = Lydian
+  // 4 = Mixolydian, 5 = Aeolian, 6 = Locrian, 7 = Harmonic Minor
+  // Melodic minor changes between going up the scale and going down. This
+  // is a special case for later inclusion
+
+  mynote.set_ones_B();
+  /*mynote.set_B(0, 0, 6, 99);
+  mynote.set_B(0, 6, 2, 99);
+  mynote.set_B(6, 2, 0, 99);*/
+  //mynote.rand_B();
+  //mynote.rand_B();
+  mynote.show_B();
+
+  RtMidiIn *midiin = new RtMidiIn();
+  std::vector<unsigned char> imessage;
+  int nBytes;
+  double stamp;
+ // Check available ports.
+  unsigned int iPorts = midiin->getPortCount();
+  if ( iPorts == 0 ) {
+    std::cout << "No ports available!\n";
+    delete midiin;
+    return(0);
+  }
+  midiin->openPort( 0 );
+  // Don't ignore sysex, timing, or active sensing messages.
+  midiin->ignoreTypes( false, false, false );
+  // Install an interrupt handler function.
+  done = false;
+  (void) signal(SIGINT, finish);
+  // Periodically check input queue.
+  std::cout << "Reading MIDI from port ... quit with Ctrl-C.\n";
+
+  while ( !done ) {
+    stamp = midiin->getMessage( &imessage );
+    nBytes = imessage.size();
+    for ( i=0; i<nBytes; i++ )
+    {
+      std::cout << "Byte " << i << " = " << (int)imessage[i] << ", ";
+
+      if(i == 1)
+      {
+        this_note = (int)imessage[i] - 60;
+          mynote.inc_B(pen_note, last_note, this_note);
+          pen_note = last_note;
+          last_note = this_note;
+      }
+
+    }
+
+    if ( nBytes > 0 )
+    {
+      std::cout << "stamp = " << stamp << std::endl;
+    }
+    SLEEP( 10 );
+    if(kbhit())break;
+  }
+  mynote.show_B();
+
+  cout << "Normal exit\n";
+
+  delete midiin;
+//return(0);
 
   // Fill notes array
   for(i = 0; i < 10; i++)
@@ -179,8 +451,10 @@ int main( void )
         notes[i][j] = -1;
       else
       {
-        notes[i][j] = get_note1();
-        //notes[i][j] = get_note2(last_note);
+        //notes[i][j] = mynote.get_note(pen_note, last_note);
+        notes[i][j] = mynote.get_note(last_note, pen_note); // Will this fix
+          // sequences being learned in reverse?
+        pen_note = last_note;
         last_note = notes[i][j];
       }
     }
@@ -230,12 +504,13 @@ int main( void )
 
   SLEEP(STIME * 4);
 
-  for(i = 0; i < 20; i++)
+  for(i = 0; i < 10; i++)
   {
     cout << "Loop " << order[i];
 
-    for (int g = 0; g < 8; g++)
+    for (int g = 0; g < 32; g++)
     {
+
       if(notes[order[i]][g] < 0)
       {
         SLEEP(STIME);
@@ -255,21 +530,21 @@ int main( void )
         message[2] = 90;
         midiout->sendMessage( &message );
 
-        cout << " " << note2;
+        //cout << " " << note2;
 
         message[0] = 144; // Note on
         message[1] = note2;
         message[2] = 90;
         midiout->sendMessage( &message );
 
-        cout << " " << note3;
+        //cout << " " << note3;
 
         message[0] = 144; // Note on
         message[1] = note3;
         message[2] = 90;
         midiout->sendMessage( &message );
 
-        cout << " " << note4;
+        //cout << " " << note4;
 
         message[0] = 144; // Note on
         message[1] = note4;
@@ -309,13 +584,13 @@ int main( void )
 
   SLEEP(STIME * 8); // Allow time for the notes to ring on
 
-  // Control Change: 176, 7, 40
+/*  // Control Change: 176, 7, 40
   message[0] = 176;
   message[1] = 7;
   message[2] = 40;
-  midiout->sendMessage( &message );
+  midiout->sendMessage( &message );*/
 
-  SLEEP( 500 );
+//  SLEEP( 500 );
 
   // Sysex: 240, 67, 4, 3, 2, 247
   message[0] = 240;
