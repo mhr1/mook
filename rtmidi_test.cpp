@@ -28,9 +28,9 @@ using namespace std;
 // It returns false if there are no ports available.
 bool chooseMidiPort( RtMidiOut *rtmidi );
 
-#define STIME 1000
+#define STIME 700
 
-static unsigned long my_seed = 1102; //11056; //default random seed
+static unsigned long my_seed = 1112; //11056; //default random seed
 #define MY_RAND_MAX 2147483646 // 2^32 - 2, 1 less than mod value in rand no gen
 
 unsigned long my_rand(void)
@@ -49,12 +49,11 @@ int get_note(void)
 {
   int range, sum;
   int i, j, x;
-  int array_notes = 15;
+  int array_notes = 7;
 
 // Probability array
-  int A[array_notes] = {75, 30, 75, 75, 0, 75, 0, 75, 30, 75, 75, 0, 75, 0, 75 };
-
-
+  //int A[array_notes] = {75, 30, 75, 0, 50, 75, 0, 75, 30, 75, 75, 0, 75, 0, 75 };
+  int A[array_notes] = {100, 75, 75, 40, 50, 75, 20 };
   range = 0;
 	for(i = 0; i < array_notes; i++)
 		range += A[i];
@@ -91,7 +90,7 @@ int main( void )
   vector<unsigned char> message;
   int note1, note2, note3;
 
-  int note_array[3][22] = {{48, 50, 52, 53, 55, 57, 59,
+  int note_array[7][22] = {{48, 50, 52, 53, 55, 57, 59,
                         60, 62, 64, 65, 67, 69, 71,
                         72, 74, 76, 77, 79, 81, 83,
                         84},
@@ -102,9 +101,27 @@ int main( void )
                         {48, 49, 51, 53, 55, 56, 58,
                         60, 61, 63, 65, 67, 68, 72,
                         72, 73, 75, 77, 79, 80, 82,
+                        84},
+                        {48, 50, 52, 54, 55, 57, 59,
+                        60, 62, 64, 66, 67, 69, 71,
+                        72, 74, 76, 78, 79, 81, 83,
+                        84},
+                        {48, 50, 52, 53, 55, 57, 58,
+                        60, 62, 64, 65, 67, 69, 70,
+                        72, 74, 76, 77, 79, 81, 82,
+                        84},
+                        {48, 50, 51, 53, 55, 56, 58,
+                        60, 62, 63, 65, 67, 68, 70,
+                        72, 74, 75, 77, 79, 80, 82,
+                        84},
+                        {48, 49, 51, 53, 54, 56, 58,
+                        60, 61, 63, 65, 66, 68, 70,
+                        72, 73, 75, 77, 78, 80, 82,
                         84}};
 
-  int mode = 2; // 0 = Ionian, 1 = Dorian, 2 = Phrygian
+  int mode = 1; // 0 = Ionian, 1 = Dorian, 2 = Phrygian. 3 = Lydian
+  // 4 = Mixolydian, 5 = Aeolian, 6 = Locrian
+
   // RtMidiOut constructor
   try {midiout = new RtMidiOut();}
   catch (RtMidiError &error)
@@ -134,12 +151,29 @@ int main( void )
   midiout->sendMessage( &message );*/
 
   // Control Change: 176, 7, 100 (volume)
-  message[0] = 176;
+  message[0] = 0xB0; //176;
   message[1] = 7;
   message.push_back( 100 );
   midiout->sendMessage( &message );
+/*
+  message[0] = 0xB1; //176;
+  message[1] = 7;
+  message.push_back( 100 );
+  midiout->sendMessage( &message );
+*/
+  message[0] = 0x91; // Note on
+  message[1] = note_array[mode][0] - 12; // Tonic bass
+  message[2] = 90;
+  midiout->sendMessage( &message );
 
-  for (int g = 0; g < 256; g++)
+  message[0] = 0x91; // Note on
+  message[1] = note_array[mode][0] - 10; // Tonic bass
+  message[2] = 90;
+  //midiout->sendMessage( &message );
+
+  SLEEP(STIME * 4);
+
+  for (int g = 0; g < 32; g++)
   {
     if(get_space()) //space
       SLEEP(STIME);
@@ -149,7 +183,7 @@ int main( void )
       //note2 = get_note();
       //note3 = get_note();
 
-      message[0] = 144; // Note on
+      message[0] = 0x90; // Note on
       message[1] = note_array[mode][note1];
       message[2] = 90;
       midiout->sendMessage( &message );
@@ -171,7 +205,7 @@ int main( void )
 
       SLEEP(STIME);
 
-      message[0] = 128; // Note off
+      message[0] = 0x80; // Note off
       message[1] = note_array[mode][note1];
       message[2] = 40;
       midiout->sendMessage( &message );
@@ -190,9 +224,21 @@ int main( void )
       message[1] = note_array[mode][note1 + 6];
       message[2] = 40;
       midiout->sendMessage( &message );
+
     }
     //SLEEP(STIME * 2);
   }
+
+  message[0] = 0x81; // Note off
+  message[1] = note_array[mode][0] - 12; // Tonic bass
+  message[2] = 40;
+  midiout->sendMessage( &message );
+
+  message[0] = 0x81; // Note off
+  message[1] = note_array[mode][0] - 10; // Tonic bass
+  message[2] = 40;
+  //midiout->sendMessage( &message );
+
   // Note On: 144, 64, 90
 /*  message[0] = 144;
   message[1] = 64;

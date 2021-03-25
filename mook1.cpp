@@ -63,16 +63,19 @@ int kbhit(void)
 bool chooseMidiPort( RtMidiOut *rtmidi )
 {
   if(rtmidi->getPortCount() > 0)
+  {
     rtmidi->openPort(0);
+    rtmidi->openPort(1);
+  }
   else
     cout << "No ports found" << endl;
 
   return true;
 }
 
-#define STIME 100
+#define STIME 500
 
-static unsigned long my_seed = 1223; //11056; //default random seed
+static unsigned long my_seed = 1222; //11056; //default random seed
 #define MY_RAND_MAX 2147483646 // 2^32 - 2, 1 less than mod value in rand no gen
 
 unsigned long my_rand(void)
@@ -390,7 +393,9 @@ int main( void )
   mynote.set_B(6, 2, 0, 99);*/
   //mynote.rand_B();
   //mynote.rand_B();
-  mynote.show_B();
+  //mynote.show_B();
+
+
 
   RtMidiIn *midiin = new RtMidiIn();
   std::vector<unsigned char> imessage;
@@ -398,6 +403,7 @@ int main( void )
   double stamp;
  // Check available ports.
   unsigned int iPorts = midiin->getPortCount();
+  cout << "Ports " << iPorts << endl;
   if ( iPorts == 0 ) {
     std::cout << "No ports available!\n";
     delete midiin;
@@ -469,12 +475,13 @@ int main( void )
     exit( EXIT_FAILURE );
   }
   // Call function to select port.
-  try {if(!chooseMidiPort(midiout)) goto cleanup;}
+  try {if(!chooseMidiPort(midiout)) delete midiout;}
   catch (RtMidiError &error)
   {
     error.printMessage();
-    goto cleanup;
+    delete midiout;
   }
+
 
   // Send out a series of MIDI messages.
 
@@ -504,7 +511,7 @@ int main( void )
 
   SLEEP(STIME * 4);
 
-  for(i = 0; i < 10; i++)
+  for(i = 0; i < 2; i++)
   {
     cout << "Loop " << order[i];
 
@@ -601,9 +608,6 @@ int main( void )
   message.push_back( 247 );
   midiout->sendMessage( &message );
 
-  // Clean up
- cleanup:
-  delete midiout;
 
   return 0;
 }
